@@ -27,10 +27,10 @@ func NewWorker(id int, queue *Queue, wg *sync.WaitGroup) *Worker {
 func (w *Worker) Start() {
 	w.wg.Add(1)
 
-	w.wg.Go(func() {
+	go func() {
 		defer w.wg.Done()
 		w.run()
-	})
+	}()
 }
 
 func (w *Worker) Stop() {

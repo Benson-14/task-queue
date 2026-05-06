@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -22,6 +23,70 @@ type Task struct {
 	Status    TaskStatus
 	CreatedAt time.Time
 	Error     string
+}
+
+type Stats struct {
+	Pending   int
+	Running   int
+	Completed int
+	Failed    int
+}
+
+type StatusStore struct {
+	mu    sync.RWMutex
+	tasks map[string]*Task
+}
+
+func NewStatusStore() *StatusStore {
+	return &StatusStore{
+		tasks: make(map[string]*Task),
+	}
+}
+
+func (s *StatusStore) Set(task *Task) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.tasks[task.ID] = task
+}
+
+func (s *StatusStore) Get(id string) (*Task, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	task, ok := s.tasks[id]
+	return task, ok
+}
+
+func (s *StatusStore) ListByStatus(status TaskStatus) []*Task {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var result []*Task
+	for _, task := range s.tasks {
+		if task.Status == status {
+			result = append(result, task)
+		}
+	}
+	return result
+}
+
+func (s *StatusStore) Stats() Stats {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	stats := Stats{}
+	for _, task := range s.tasks {
+		switch task.Status {
+		case StatusPending:
+			stats.Pending++
+		case StatusRunning:
+			stats.Running++
+		case StatusCompleted:
+			stats.Completed++
+		case StatusFailed:
+			stats.Failed++
+		}
+	}
+	return stats
 }
 
 func NewTask(taskType string, payload any) (*Task, error) {
