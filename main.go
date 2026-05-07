@@ -15,7 +15,7 @@ func main() {
 	q := queue.NewQueue(100)
 	store := task.NewStatusStore()
 
-	pool := worker.NewWorkerPool(q, 3)
+	pool := worker.NewWorkerPool(q, 3, store)
 	pool.Start()
 	defer pool.Stop()
 

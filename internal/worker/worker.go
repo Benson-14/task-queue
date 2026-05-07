@@ -9,21 +9,23 @@ import (
 )
 
 type Worker struct {
-	id        int
-	queue     *queue.Queue
-	stop      chan struct{}
-	wg        *sync.WaitGroup
-	processed []string
-	mu        sync.Mutex
+	id          int
+	queue       *queue.Queue
+	stop        chan struct{}
+	wg          *sync.WaitGroup
+	processed   []string
+	mu          sync.Mutex
+	statusStore *task.StatusStore
 }
 
-func NewWorker(id int, queue *queue.Queue, wg *sync.WaitGroup) *Worker {
+func NewWorker(id int, queue *queue.Queue, wg *sync.WaitGroup, store *task.StatusStore) *Worker {
 	return &Worker{
-		id:        id,
-		queue:     queue,
-		stop:      make(chan struct{}),
-		wg:        wg,
-		processed: make([]string, 0),
+		id:          id,
+		queue:       queue,
+		stop:        make(chan struct{}),
+		wg:          wg,
+		processed:   make([]string, 0),
+		statusStore: store,
 	}
 }
 
@@ -34,6 +36,7 @@ func (w *Worker) Start() {
 		defer w.wg.Done()
 		w.run()
 	}()
+
 }
 
 func (w *Worker) Stop() {
@@ -49,17 +52,29 @@ func (w *Worker) run() {
 		select {
 		case <-w.stop:
 			return
-		case task := <-w.queue.Tasks():
-			w.process(task)
+		case t := <-w.queue.Tasks():
+			t.Status = task.StatusRunning
+			w.statusStore.Set(t)
+
+			err := w.process(t)
+
+			if err != nil {
+				t.Status = task.StatusFailed
+				t.Error = err.Error()
+			} else {
+				t.Status = task.StatusCompleted
+			}
+			w.statusStore.Set(t)
 		}
 	}
 }
 
-func (w *Worker) process(task *task.Task) {
+func (w *Worker) process(t *task.Task) error {
 	w.mu.Lock()
-	w.processed = append(w.processed, task.ID)
+	w.processed = append(w.processed, t.ID)
 	w.mu.Unlock()
-	fmt.Printf("Worker %d processed %s\n", w.id, task.ID)
+	fmt.Printf("Worker %d processed %s\n", w.id, t.ID)
+	return nil
 }
 
 func (w *Worker) GetProcessed() []string {

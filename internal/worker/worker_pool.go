@@ -4,27 +4,30 @@ import (
 	"sync"
 
 	"github.com/Benson-14/task-queue/internal/queue"
+	"github.com/Benson-14/task-queue/internal/task"
 )
 
 type WorkerPool struct {
-	workers []*Worker
-	queue   *queue.Queue
-	wg      *sync.WaitGroup
-	stop    chan struct{}
+	workers     []*Worker
+	queue       *queue.Queue
+	wg          *sync.WaitGroup
+	stop        chan struct{}
+	statusStore *task.StatusStore
 }
 
-func NewWorkerPool(queue *queue.Queue, size int) *WorkerPool {
+func NewWorkerPool(queue *queue.Queue, size int, store *task.StatusStore) *WorkerPool {
 	return &WorkerPool{
-		queue:   queue,
-		stop:    make(chan struct{}),
-		wg:      &sync.WaitGroup{},
-		workers: make([]*Worker, size),
+		queue:       queue,
+		stop:        make(chan struct{}),
+		wg:          &sync.WaitGroup{},
+		workers:     make([]*Worker, size),
+		statusStore: store,
 	}
 }
 
 func (wp *WorkerPool) Start() {
 	for i := range wp.workers {
-		worker := NewWorker(i, wp.queue, wp.wg)
+		worker := NewWorker(i, wp.queue, wp.wg, wp.statusStore)
 		wp.workers[i] = worker
 		worker.Start()
 	}
