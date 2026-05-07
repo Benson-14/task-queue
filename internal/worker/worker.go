@@ -1,20 +1,23 @@
-package main
+package worker
 
 import (
 	"fmt"
 	"sync"
+
+	"github.com/Benson-14/task-queue/internal/queue"
+	"github.com/Benson-14/task-queue/internal/task"
 )
 
 type Worker struct {
 	id        int
-	queue     *Queue
+	queue     *queue.Queue
 	stop      chan struct{}
 	wg        *sync.WaitGroup
 	processed []string
 	mu        sync.Mutex
 }
 
-func NewWorker(id int, queue *Queue, wg *sync.WaitGroup) *Worker {
+func NewWorker(id int, queue *queue.Queue, wg *sync.WaitGroup) *Worker {
 	return &Worker{
 		id:        id,
 		queue:     queue,
@@ -46,13 +49,13 @@ func (w *Worker) run() {
 		select {
 		case <-w.stop:
 			return
-		case task := <-w.queue.tasks:
+		case task := <-w.queue.Tasks():
 			w.process(task)
 		}
 	}
 }
 
-func (w *Worker) process(task *Task) {
+func (w *Worker) process(task *task.Task) {
 	w.mu.Lock()
 	w.processed = append(w.processed, task.ID)
 	w.mu.Unlock()

@@ -1,15 +1,19 @@
-package main
+package worker
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/Benson-14/task-queue/internal/queue"
+)
 
 type WorkerPool struct {
 	workers []*Worker
-	queue   *Queue
+	queue   *queue.Queue
 	wg      *sync.WaitGroup
 	stop    chan struct{}
 }
 
-func NewWorkerPool(queue *Queue, size int) *WorkerPool {
+func NewWorkerPool(queue *queue.Queue, size int) *WorkerPool {
 	return &WorkerPool{
 		queue:   queue,
 		stop:    make(chan struct{}),
